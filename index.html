@@ -1,0 +1,369 @@
+<html>
+	<head>
+		<title>
+			Historical Alliteration Risk
+		</title>
+		<script src="maps/mapdata.js"></script>
+	</head>
+	<body>
+		<canvas id="riskMap" width="900" height="500">
+
+
+			<!-- content -->
+			<div id="navpad">
+				<nav>
+				</nav>
+			</div>
+
+
+		<script>
+
+			function sleep(millis)
+			{
+				var date = new Date();
+				var curDate = null;
+				do { curDate = new Date(); }
+				while(curDate-date < millis);
+			}
+
+			function plotPixel(x, y, r, g, b, ctx)
+			{
+				ctx.fillStyle = "rgba("+r+","+g+","+b+","+255+")";
+				ctx.fillRect(x, y, 1, 1);
+			}
+
+			function plotToMap(x, y, P, ctx)
+			{
+				if (P == "L")
+				{
+					plotPixel(x, y, 255, 255, 255, ctx);
+				}
+				else if (P == "O")
+				{
+					plotPixel(x, y, 153, 204, 255, ctx);
+				}
+				else
+				{
+					plotPixel(x, y, 0, 0, 0, ctx);
+				}
+			}
+
+			function getCanvas()
+			{
+				var canvas = document.getElementById('riskMap'),
+    			ctx = canvas.getContext('2d');
+    			return ctx;
+			}
+
+			function initCanvas()
+			{
+				// boundary
+
+				var ctx = getCanvas();
+				ctx.fillStyle = "rgba("+254+","+254+","+254+","+255+")";
+				ctx.fillRect(0, 0, 1000, 1000);
+
+				// sets up map
+				var penX = 0;
+				var penY = 0;
+				var mapX = mapArr.length;
+				var mapY = mapArr[0].length;
+
+
+
+				for (var i = 0; i < mapX; i++)
+				{
+					for (var j  = 0; j < mapY; j++)
+					{
+						plotToMap(i, j, mapArr[i][j], ctx);
+					}
+				}
+				
+
+			}
+
+			function writeMsg(msg, x, y, s, ctx)
+			{
+				ctx.fillStyle = "black";
+				ctx.font = "bold "+s+"px Arial";
+				ctx.fillText(msg, x, y);
+			}
+
+			function darken(col)
+			{
+				col -= 100;
+				if (col < 0)
+				{
+					return 0;
+				}
+				return col;
+			}
+
+			function randomPick(arr)
+			{
+				var rnd = Math.floor((Math.random() * arr.length));
+				return arr[rnd];
+			}
+
+			function checkIfEdgePixel(x, y)
+			{
+				ctx = getCanvas();
+				data1 = ctx.getImageData(x+1, y, 1, 1).data;
+				data2 = ctx.getImageData(x-1, y, 1, 1).data;
+				data3 = ctx.getImageData(x, y+1, 1, 1).data;
+				data4 = ctx.getImageData(x, y-1, 1, 1).data;
+				if (data1[0] == 0 && data1[1] == 0 && data1[2] == 0 || data1[0] == 255 && data1[1] == 255 && data1[2] == 255){return true;}
+				if (data2[0] == 0 && data2[1] == 0 && data2[2] == 0 || data2[0] == 255 && data2[1] == 255 && data2[2] == 255){return true;}
+				if (data3[0] == 0 && data3[1] == 0 && data3[2] == 0 || data3[0] == 255 && data3[1] == 255 && data3[2] == 255){return true;}
+				if (data4[0] == 0 && data4[1] == 0 && data4[2] == 0 || data4[0] == 255 && data4[1] == 255 && data4[2] == 255){return true;}
+				return false;
+			}
+
+			function getPixelColour(x, y)
+			{
+
+				ctx = getCanvas();
+				data = ctx.getImageData(x, y, 1, 1).data;
+				return data;
+			}
+
+
+			function checkPixel(x, y, cur)
+			{
+				ctx = getCanvas();
+				data = ctx.getImageData(x, y, 1, 1).data;
+				r = data[0];
+				g = data[1];
+				b = data[2];
+				if (r == 153 && g == 204 && b == 255 // ocean
+				 || r == 254 && g == 254 && b == 254 // off map
+				 || r == cur.r && g == cur.g && b == cur.b // own land
+				 || r == darken(cur.r) && g == darken(cur.g) && b == darken(cur.b)) // own capital
+				{
+					return false;
+				}
+				return true;
+
+			}
+
+			function capTerritory(country, toCap)
+			{
+				// random cap
+				var current = country.terrArr;
+				while (toCap > 0)
+				{
+					var toExpand = randomPick(current);
+					//if (!checkIfEdgePixel(toExpand[0], toExpand[1]))
+					//{
+					//	continue;
+					//}
+					var rnd = Math.random();
+					if (rnd <= 0.25)
+					{
+						newPixel = [toExpand[0]+1, toExpand[1]];
+						if (checkPixel(newPixel[0], newPixel[1], country))
+						{
+							current.push(newPixel);
+							plotPixel(newPixel[0], newPixel[1], country.r, country.g, country.b, getCanvas());
+							toCap--;
+							country.terr++;
+						}
+					}
+					else if (rnd <= 0.5)
+					{
+						newPixel = [toExpand[0]-1, toExpand[1]];
+						if (checkPixel(newPixel[0], newPixel[1], country))
+						{
+							current.push(newPixel);
+							plotPixel(newPixel[0], newPixel[1], country.r, country.g, country.b, getCanvas());
+							toCap--;
+							country.terr++;
+						}
+					}
+					else if (rnd <= 0.75)
+					{
+						newPixel = [toExpand[0], toExpand[1]+1];
+						if (checkPixel(newPixel[0], newPixel[1], country))
+						{
+							current.push(newPixel);
+							plotPixel(newPixel[0], newPixel[1], country.r, country.g, country.b, getCanvas());
+							toCap--;
+							country.terr++;
+						}
+					}
+					else
+					{
+						newPixel = [toExpand[0], toExpand[1]-1];
+						if (checkPixel(newPixel[0], newPixel[1], country))
+						{
+							current.push(newPixel);
+							plotPixel(newPixel[0], newPixel[1], country.r, country.g, country.b, getCanvas());
+							toCap--;
+							country.terr++;
+						}
+					}
+				}
+
+			}
+
+
+			function addCountry(capX, capY, r, g, b, name, fbid)
+			{
+				//start with 20 territories
+				var ctx = getCanvas();
+				var plikes = getPostLikes(fbid);
+				var likes = getFBBasic(fbid).likes;
+				writeMsg("Risk: Historical Memes Edition", 510, 12, 14, ctx);
+				writeMsg(name, 530, 30+(50*countries.length), 12, ctx);
+				writeMsg("Likes: " + likes, 530, 40+(50*countries.length), 8, ctx);
+				writeMsg("Post Likes: " + plikes, 530, 50+(50*countries.length), 8, ctx);
+				writeMsg("Territories: " + Math.floor(likes /10), 530, 60+(50*countries.length), 8, ctx);
+				ctx.fillStyle = "rgba("+r+","+g+","+b+","+255+")";
+				ctx.fillRect(510, 35+(50*countries.length), 10, 10);
+				countries.push(
+					{
+						"name": name,
+						"r": r, 
+						"g": g, 
+						"b": b,
+						"capX": capX,
+						"capY": capY,
+						"terr": Math.floor(likes /10),
+						"terrArr": [[capX, capY]],
+						"fbid": fbid,
+						"likes": likes,
+						"plikes": plikes
+					}
+					)
+				plotPixel(capX, capY, r, g, b, ctx);
+				capTerritory(countries[countries.length-1], Math.floor(likes /10)-1);
+				// draw captial
+				ctx.fillStyle = "rgba("+darken(r)+","+darken(g)+","+darken(b)+","+255+")";
+				ctx.fillRect(capX-3, capY-3, 6, 6);
+
+			}
+
+
+			function httpGet(theUrl)
+			{
+			    var xmlHttp = null;
+			
+			    xmlHttp = new XMLHttpRequest();
+			    xmlHttp.open( "GET", theUrl, false );
+			    xmlHttp.send( null );
+			    return xmlHttp.responseText;
+			}
+
+			function getFBBasic(fbid)
+			{
+				oauth = 'CAACEdEose0cBAJZBwrr4fGmpmh0T34IZBrWUXy9ChFeSWhQ5pLZAsgUg5TtrdgdimZBzrubbtiEFsSF9cu0TCyK2QdhtyGYfVBgJJ9X3cssvZBFBTBXnokijzU5yDnh7Maq8UzXZChy5nVCUl6iwSL3e6KHTNa2SLhPICTDrnhKeyRVFZAVPZCDCoggeIWQ7EmYPlq1dPaOYEJgRewnH9nZAN';
+				reqstr = "https://graph.facebook.com/v2.3/"+fbid+"/?access_token="+oauth+"&fields=id,name,likes";
+				return JSON.parse(httpGet(reqstr));
+			}
+
+			function getFBPostsData(fbid)
+			{
+				oauth = 'CAACEdEose0cBAJZBwrr4fGmpmh0T34IZBrWUXy9ChFeSWhQ5pLZAsgUg5TtrdgdimZBzrubbtiEFsSF9cu0TCyK2QdhtyGYfVBgJJ9X3cssvZBFBTBXnokijzU5yDnh7Maq8UzXZChy5nVCUl6iwSL3e6KHTNa2SLhPICTDrnhKeyRVFZAVPZCDCoggeIWQ7EmYPlq1dPaOYEJgRewnH9nZAN';
+				reqstr = "https://graph.facebook.com/v2.3/"+fbid+"/feed/?access_token="+oauth+"&fields=likes.summary(true)";
+				return JSON.parse(httpGet(reqstr));
+			}
+
+			function getPostLikes(fbid)
+			{
+				var data = getFBPostsData(fbid);
+				var sum = 0;
+				for (var i = 0; i < 25; i++)
+				{
+					try{
+						sum += data.data[i].likes.summary.total_count;
+					}
+					catch(err){}
+				}
+				return sum;
+			}
+
+
+			function updateScoreBoard()
+			{
+				// wipe
+				ctx = getCanvas();
+				ctx.fillStyle = "rgba("+255+","+255+","+255+","+255+")";
+				ctx.fillRect(520, 20, 500, 500);
+				//refill
+				for (var i = 0; i < countries.length; i++)
+				{
+					writeMsg(countries[i].name, 530, 30+(50*i), 12, ctx);
+					writeMsg("Likes: " + countries[i].likes, 530, 40+(50*i), 8, ctx);
+					writeMsg("Post Likes: " + countries[i].plikes, 530, 50+(50*i), 8, ctx);
+					writeMsg("Territories: " + countries[i].terr, 530, 60+(50*i), 8, ctx);
+				}
+				//writeMsg("Risk: Historical Memes Edition", 510, 12, 14, ctx);
+			}
+
+			function updateTerritories()
+			{
+				for (var i = 0; i < countries.length; i++)
+				{
+					newTerr = new Array();
+					for (var j = 0; j < countries[i].terrArr.length; j++)
+					{
+						col = getPixelColour(countries[i].terrArr[j][0], countries[i].terrArr[j][1]);
+						if (col[0] == countries[i].r && col[1] == countries[i].g && col[2] == countries[i].b
+							|| col[0] == darken(countries[i].r) && col[1] == darken(countries[i].g) && col[2] == darken(countries[i].b))
+						{
+							newTerr.push([countries[i].terrArr[j][0], countries[i].terrArr[j][1]]);
+						}
+					}
+					countries[i].terrArr = newTerr;
+					countries[i].terr = newTerr.length;
+				}
+			}
+
+			function update()
+			{
+				for (var i = 0; i < countries.length; i++)
+				{
+					console.log("hjvh");
+					var curr = countries[i];
+					var diff = (getFBBasic(curr.fbid).likes - curr.likes);
+					curr.likes = getFBBasic(curr.fbid).likes;
+
+					capTerritory(curr, diff * 100);
+					plikes = getPostLikes(curr.fbid);
+					diff = plikes - curr.plikes;
+					curr.plikes = plikes;
+					capTerritory(curr, diff * 50);
+				}
+				updateTerritories();
+				updateScoreBoard();
+			}
+
+
+
+
+			function runGame()
+			{
+				// found capital cities
+				addCountry(200, 350, 255, 0, 0, "Rough Roman Memes", '780486712045038');
+				addCountry(360, 320, 0, 255, 0, "Outrageous Ottoman Memes", '780580212031710');
+				addCountry(80, 190, 255, 255, 0, "Stern Saxon Memes", 'brb1saxon');
+				addCountry(180, 190, 200, 155, 120, "Prestigious Prussian Memes", '1082942321732993');
+				addCountry(380, 150, 30, 30, 120, "Menacing Mongolian Memes", 'MonstrousMongolMemes');
+				addCountry(80, 260, 120, 120, 120, "Noble Norman Maymays", 'NobleNormanMaymays');
+				addCountry(160, 210, 120, 0, 120, "German Empire Memes", 'germanempirememes');
+				addCountry(200, 40, 0, 255, 120, "Violent Viking Memes", 'violentvikingmemes');
+
+				setInterval(function(){update();}, 10000);
+			}
+
+
+			countries = [];
+
+			initCanvas();
+			runGame();
+
+
+
+		</script>
+	</body>
+</html>
